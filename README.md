@@ -24,10 +24,17 @@ AI-powered tech & business intelligence event discovery. Scrapes Eventbrite, Mee
 
 1. Open [Pinokio](https://pinokio.computer) and click **Discover**
 2. Find **Attendable** and click **Install**
-3. Edit `.env` with at least one LLM API key (or point to LM Studio)
-4. Click **Start** → browser opens at `http://localhost:8000`
-5. A welcome banner appears on first load — click **Start Setup →** to open the configuration wizard
-6. Use **Factory Reset** in Pinokio to wipe local data and restore to a clean install
+3. Click **Start** → browser opens at `http://localhost:8000`
+4. A welcome banner appears on first load — click **Start Setup →** to configure your LLM key, location, and sources
+
+### Pinokio actions
+
+| Button | What it does |
+|--------|-------------|
+| **Install** | Installs Python dependencies, Chromium (for scrapers), initialises the database, and copies `.env.local.example → .env` *(skipped if `.env` already exists)* |
+| **Start** | Starts the web server and opens `http://localhost:8000` in your browser |
+| **Update** | Pulls the latest code (`git pull`), updates dependencies, and applies any new database migrations. **Your `.env` and `config.json` are left untouched.** |
+| **Factory Reset** | Deletes all local data (`.env`, `config.json`, database, backups), resets the code to the latest clean version from the repository, then runs a full reinstall with a fresh `.env` from the template. Use this to start completely from scratch. |
 
 ---
 
