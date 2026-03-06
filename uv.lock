@@ -363,7 +363,7 @@ wheels = [
 
 [[package]]
 name = "event-agent"
-version = "0.1.0"
+version = "0.25.0a1"
 source = { editable = "." }
 dependencies = [
     { name = "aiosqlite" },
