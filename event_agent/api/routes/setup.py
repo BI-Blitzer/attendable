@@ -19,6 +19,8 @@ _ALLOWED_ENV_KEYS = {
     "ANTHROPIC_API_KEY",
     "OPENAI_API_KEY",
     "GEMINI_API_KEY",
+    "XAI_API_KEY",
+    "MISTRAL_API_KEY",
     "LLM_MODEL",
     "LLM_API_KEY",
     "LLM_API_BASE",
@@ -98,6 +100,8 @@ _PROVIDER_DEFAULTS = {
     "anthropic": "claude-haiku-4-5-20251001",
     "openai":    "gpt-4o-mini",
     "google":    "gemini/gemini-2.0-flash",
+    "grok":      "xai/grok-beta",
+    "mistral":   "mistral/mistral-small-latest",
 }
 
 

@@ -1764,8 +1764,11 @@ _HTML = """<!DOCTYPE html>
     { id: 'anthropic', label: 'Anthropic', cost: '💳 Pay-per-use', costCls: 'cost-paid',  note: 'Best accuracy. ~$0.01–0.05/run' },
     { id: 'openai',    label: 'OpenAI',    cost: '💳 Pay-per-use', costCls: 'cost-paid',  note: 'Strong accuracy. ~$0.01–0.05/run' },
     { id: 'google',    label: 'Google',    cost: '🆓/💳 Free tier', costCls: 'cost-mixed', note: 'Gemini Flash — generous free tier' },
+    { id: 'grok',      label: 'Grok',      cost: '💳 Pay-per-use', costCls: 'cost-paid',  note: 'xAI Grok — fast, competitive pricing' },
+    { id: 'mistral',   label: 'Mistral',   cost: '💳 Pay-per-use', costCls: 'cost-paid',  note: 'Strong European LLM, good price/performance' },
     { id: 'lmstudio',  label: 'LM Studio', cost: '🆓 Free local',  costCls: 'cost-free',  note: 'Requires LM Studio running with a loaded model' },
     { id: 'ollama',    label: 'Ollama',    cost: '🆓 Free local',  costCls: 'cost-free',  note: 'Requires Ollama running locally' },
+    { id: 'custom',    label: 'Custom',    cost: '⚙ Any provider', costCls: 'cost-free',  note: 'Any LiteLLM-compatible endpoint — Groq, Cohere, Together AI, Perplexity, etc.' },
   ];
 
   const _SEARCH_PROVIDERS = [
@@ -1893,12 +1896,24 @@ _HTML = """<!DOCTYPE html>
 
   function _detectLlmProvider(cfg, evars) {
     evars = evars || {};
-    if (evars.ANTHROPIC_API_KEY || (cfg._anthropic_set)) return 'anthropic';
-    if (evars.OPENAI_API_KEY    || (cfg._openai_set))    return 'openai';
-    if (evars.GEMINI_API_KEY    || (cfg._gemini_set))    return 'google';
-    const base = evars.LLM_API_BASE || cfg.llm_api_base || '';
-    if (base.includes('1234')) return 'lmstudio';
+    if (evars.ANTHROPIC_API_KEY || cfg._anthropic_set) return 'anthropic';
+    if (evars.OPENAI_API_KEY    || cfg._openai_set)    return 'openai';
+    if (evars.GEMINI_API_KEY    || cfg._gemini_set)    return 'google';
+    if (evars.XAI_API_KEY       || cfg._grok_set)      return 'grok';
+    if (evars.MISTRAL_API_KEY   || cfg._mistral_set)   return 'mistral';
+    const base  = evars.LLM_API_BASE || cfg.llm_api_base || '';
+    if (base.includes('1234'))  return 'lmstudio';
     if (base.includes('11434')) return 'ollama';
+    if (base)                   return 'custom';
+    // Fall back to model string detection
+    const model = (evars.LLM_MODEL || cfg.llm_model || '').toLowerCase();
+    if (model.includes('claude'))   return 'anthropic';
+    if (model.includes('gpt'))      return 'openai';
+    if (model.includes('gemini'))   return 'google';
+    if (model.includes('grok') || model.includes('xai'))    return 'grok';
+    if (model.includes('mistral'))  return 'mistral';
+    if (model.includes('ollama'))   return 'ollama';
+    if (model)                      return 'custom';
     return null;
   }
 
@@ -1940,6 +1955,24 @@ _HTML = """<!DOCTYPE html>
       <p class="setup-hint">Gemini 2.0 Flash has a generous free tier.</p>
       <a class="setup-link" href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Get API key ↗</a>
       ${_testConnBtn}`;
+    if (provider === 'grok') return `
+      <label class="setup-field-label">xAI API Key</label>
+      <input class="setup-input" id="${pfx}GrokKey" type="password" placeholder="${cfg._grok_set ? '••••••••' : 'xai-...'}"
+             value="${evars.XAI_API_KEY || ''}">
+      <label class="setup-field-label" style="margin-top:.75rem">Model (optional)</label>
+      <input class="setup-input" id="${pfx}LlmModel" type="text" placeholder="xai/grok-beta"
+             value="${evars.LLM_MODEL || (cfg.llm_model && cfg.llm_model.includes('grok') ? cfg.llm_model : '')}">
+      <a class="setup-link" href="https://console.x.ai/" target="_blank" rel="noopener">Get API key ↗</a>
+      ${_testConnBtn}`;
+    if (provider === 'mistral') return `
+      <label class="setup-field-label">Mistral API Key</label>
+      <input class="setup-input" id="${pfx}MistralKey" type="password" placeholder="${cfg._mistral_set ? '••••••••' : 'your key...'}"
+             value="${evars.MISTRAL_API_KEY || ''}">
+      <label class="setup-field-label" style="margin-top:.75rem">Model (optional)</label>
+      <input class="setup-input" id="${pfx}LlmModel" type="text" placeholder="mistral/mistral-large-latest"
+             value="${evars.LLM_MODEL || (cfg.llm_model && cfg.llm_model.includes('mistral') ? cfg.llm_model : '')}">
+      <a class="setup-link" href="https://console.mistral.ai/api-keys/" target="_blank" rel="noopener">Get API key ↗</a>
+      ${_testConnBtn}`;
     if (provider === 'lmstudio') return `
       <label class="setup-field-label">LM Studio API Base URL</label>
       <input class="setup-input" id="${pfx}ApiBase" type="text" placeholder="http://localhost:1234/v1"
@@ -1953,6 +1986,19 @@ _HTML = """<!DOCTYPE html>
       <label class="setup-field-label">Model</label>
       <input class="setup-input" id="${pfx}LlmModel" type="text" placeholder="ollama/llama3"
              value="${evars.LLM_MODEL || (cfg.llm_model && cfg.llm_model.startsWith('ollama') ? cfg.llm_model : 'ollama/llama3')}">
+      ${_testConnBtn}`;
+    if (provider === 'custom') return `
+      <label class="setup-field-label">Model String</label>
+      <input class="setup-input" id="${pfx}LlmModel" type="text" placeholder="groq/llama3-70b-8192"
+             value="${evars.LLM_MODEL || cfg.llm_model || ''}">
+      <p class="setup-hint">LiteLLM model string format. Examples: <code>groq/llama3-70b-8192</code> · <code>cohere/command-r-plus</code> · <code>together_ai/meta-llama/Llama-3-70b</code></p>
+      <label class="setup-field-label">API Key</label>
+      <input class="setup-input" id="${pfx}LlmKey" type="password" placeholder="your key..."
+             value="${evars.LLM_API_KEY || ''}">
+      <label class="setup-field-label" style="margin-top:.75rem">API Base URL <span style="font-weight:400;color:#aaa">(optional)</span></label>
+      <input class="setup-input" id="${pfx}ApiBase" type="text" placeholder="https://api.groq.com/openai/v1"
+             value="${evars.LLM_API_BASE || cfg.llm_api_base || ''}">
+      <a class="setup-link" href="https://docs.litellm.ai/docs/providers" target="_blank" rel="noopener">LiteLLM provider list ↗</a>
       ${_testConnBtn}`;
     return '';
   }
@@ -1993,10 +2039,13 @@ _HTML = """<!DOCTYPE html>
     if (!active) return;
     const p = active.textContent.trim().split(/\\s/)[0].toLowerCase();
     const val = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
-    if (p === 'anthropic' && val('wizAnthKey'))   _wizardEnvVars.ANTHROPIC_API_KEY = val('wizAnthKey');
-    if (p === 'openai'    && val('wizOpenaiKey')) _wizardEnvVars.OPENAI_API_KEY = val('wizOpenaiKey');
-    if (p === 'google'    && val('wizGeminiKey')) _wizardEnvVars.GEMINI_API_KEY = val('wizGeminiKey');
-    if ((p === 'lmstudio' || p === 'ollama') && val('wizApiBase')) _wizardEnvVars.LLM_API_BASE = val('wizApiBase');
+    if (p === 'anthropic' && val('wizAnthKey'))    _wizardEnvVars.ANTHROPIC_API_KEY = val('wizAnthKey');
+    if (p === 'openai'    && val('wizOpenaiKey'))  _wizardEnvVars.OPENAI_API_KEY    = val('wizOpenaiKey');
+    if (p === 'google'    && val('wizGeminiKey'))  _wizardEnvVars.GEMINI_API_KEY    = val('wizGeminiKey');
+    if (p === 'grok'      && val('wizGrokKey'))    _wizardEnvVars.XAI_API_KEY       = val('wizGrokKey');
+    if (p === 'mistral'   && val('wizMistralKey')) _wizardEnvVars.MISTRAL_API_KEY   = val('wizMistralKey');
+    if (p === 'custom'    && val('wizLlmKey'))     _wizardEnvVars.LLM_API_KEY       = val('wizLlmKey');
+    if ((p === 'lmstudio' || p === 'ollama' || p === 'custom') && val('wizApiBase')) _wizardEnvVars.LLM_API_BASE = val('wizApiBase');
     if (val('wizLlmModel')) _wizardEnvVars.LLM_MODEL = val('wizLlmModel');
   }
 
@@ -2209,7 +2258,7 @@ _HTML = """<!DOCTYPE html>
     const p = active ? active.textContent.trim().split(/\\s/)[0].toLowerCase() : '';
     const payload = {
       provider: p,
-      api_key:  _wizardEnvVars.ANTHROPIC_API_KEY || _wizardEnvVars.OPENAI_API_KEY || _wizardEnvVars.GEMINI_API_KEY || '',
+      api_key:  _wizardEnvVars.ANTHROPIC_API_KEY || _wizardEnvVars.OPENAI_API_KEY || _wizardEnvVars.GEMINI_API_KEY || _wizardEnvVars.XAI_API_KEY || _wizardEnvVars.MISTRAL_API_KEY || _wizardEnvVars.LLM_API_KEY || '',
       model:    _wizardEnvVars.LLM_MODEL || '',
       api_base: _wizardEnvVars.LLM_API_BASE || '',
     };
@@ -2230,7 +2279,7 @@ _HTML = """<!DOCTYPE html>
     const val = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
     const payload = {
       provider: p,
-      api_key:  val('settAnthKey') || val('settOpenaiKey') || val('settGeminiKey') || '',
+      api_key:  val('settAnthKey') || val('settOpenaiKey') || val('settGeminiKey') || val('settGrokKey') || val('settMistralKey') || val('settLlmKey') || '',
       model:    val('settLlmModel') || '',
       api_base: val('settApiBase') || '',
     };
@@ -2492,10 +2541,13 @@ _HTML = """<!DOCTYPE html>
     const env = {};
     const active = document.querySelector('#settingsBody .provider-pill.active');
     const p = active ? active.textContent.trim().split(/\\s/)[0].toLowerCase() : '';
-    if (p === 'anthropic' && val('settAnthKey'))   env.ANTHROPIC_API_KEY = val('settAnthKey');
-    if (p === 'openai'    && val('settOpenaiKey')) env.OPENAI_API_KEY    = val('settOpenaiKey');
-    if (p === 'google'    && val('settGeminiKey')) env.GEMINI_API_KEY    = val('settGeminiKey');
-    if ((p === 'lmstudio' || p === 'ollama') && val('settApiBase')) env.LLM_API_BASE = val('settApiBase');
+    if (p === 'anthropic' && val('settAnthKey'))    env.ANTHROPIC_API_KEY = val('settAnthKey');
+    if (p === 'openai'    && val('settOpenaiKey'))  env.OPENAI_API_KEY    = val('settOpenaiKey');
+    if (p === 'google'    && val('settGeminiKey'))  env.GEMINI_API_KEY    = val('settGeminiKey');
+    if (p === 'grok'      && val('settGrokKey'))    env.XAI_API_KEY       = val('settGrokKey');
+    if (p === 'mistral'   && val('settMistralKey')) env.MISTRAL_API_KEY   = val('settMistralKey');
+    if (p === 'custom'    && val('settLlmKey'))     env.LLM_API_KEY       = val('settLlmKey');
+    if ((p === 'lmstudio' || p === 'ollama' || p === 'custom') && val('settApiBase')) env.LLM_API_BASE = val('settApiBase');
     if (val('settLlmModel')) env.LLM_MODEL = val('settLlmModel');
     if (val('settBraveKey')) env.BRAVE_API_KEY = val('settBraveKey');
     if (val('settSerpKey'))  env.SERP_API_KEY  = val('settSerpKey');

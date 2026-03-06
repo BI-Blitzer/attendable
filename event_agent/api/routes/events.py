@@ -352,9 +352,21 @@ async def get_stats():
     elif "gemini" in model:
         llm_name = "Google"
         llm_ok = bool(s.gemini_api_key or s.llm_api_key)
+    elif "grok" in model or "xai" in model:
+        llm_name = "Grok"
+        llm_ok = bool(s.xai_api_key or s.llm_api_key)
+    elif "mistral" in model:
+        llm_name = "Mistral"
+        llm_ok = bool(s.mistral_api_key or s.llm_api_key)
+    elif "groq" in model:
+        llm_name = "Groq"
+        llm_ok = bool(s.llm_api_key)
     elif "ollama" in model:
         llm_name = "Ollama"
         llm_ok = bool(s.llm_api_base)
+    elif s.llm_api_base:
+        llm_name = "Local LLM"
+        llm_ok = True   # custom base URL implies it's reachable
     else:
         llm_name = "LLM"
         llm_ok = bool(s.llm_api_key)

@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     openai_api_key: str = ""
     gemini_api_key: str = ""
+    xai_api_key: str = ""        # Grok (xAI)
+    mistral_api_key: str = ""    # Mistral AI
     eventbrite_api_key: str = ""
     meetup_api_key: str = ""
     serp_api_key: str = ""
