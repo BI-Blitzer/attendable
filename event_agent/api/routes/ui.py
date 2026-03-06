@@ -115,6 +115,7 @@ _HTML = """<!DOCTYPE html>
     .kpi-ok   .kpi-dot { color: #16a34a; }
     .kpi-warn .kpi-dot { color: #d97706; }
     .kpi-err  .kpi-dot { color: #dc2626; }
+    .kpi-idle .kpi-dot { color: #ccc; }
     .kpi-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .kpi-endpoint { color: #bbb; font-size: 0.68rem; }
     .kpi-count {
@@ -1525,11 +1526,12 @@ _HTML = """<!DOCTYPE html>
       runAtEl.textContent = 'No runs yet';
     }
 
-    // Sources — always show enabled scrapers with endpoints; counts added after a run
+    // Sources — show enabled scrapers; green after a run, grey until then
     const sourcesEl    = document.getElementById('kpiSources');
     const enabledSrcs  = data.enabled_sources || [];
     const srcCounts    = data.source_counts   || {};
     const searchProv   = data.search_provider || 'DuckDuckGo';
+    const hasRun       = !!data.last_run_at;
     const srcMeta = {
       eventbrite: { label: 'Eventbrite', endpoint: 'eventbrite.com' },
       meetup:     { label: 'Meetup',     endpoint: 'meetup.com'     },
@@ -1538,9 +1540,10 @@ _HTML = """<!DOCTYPE html>
     };
     if (enabledSrcs.length) {
       sourcesEl.innerHTML = enabledSrcs.map(src => {
-        const m     = srcMeta[src] || { label: src, endpoint: '' };
-        const count = srcCounts[src];
-        return `<div class="kpi-row kpi-ok">
+        const m      = srcMeta[src] || { label: src, endpoint: '' };
+        const count  = srcCounts[src];
+        const rowCls = hasRun ? 'kpi-ok' : 'kpi-idle';
+        return `<div class="kpi-row ${rowCls}">
           <span class="kpi-dot">●</span>
           <span class="kpi-name">${m.label}<span class="kpi-endpoint"> · ${m.endpoint}</span></span>
           ${count != null ? `<span class="kpi-count">${count}</span>` : ''}
@@ -2598,11 +2601,18 @@ _HTML = """<!DOCTYPE html>
   }
 
   // ── First-run banner IIFE ─────────────────────────────────────────────────
+  // Retry up to 5 times to handle the case where the browser opens before
+  // the server is fully started (common in Pinokio / persistent-process launchers).
   (async () => {
-    try {
-      const status = await fetch('/setup/status').then(r => r.json());
-      if (!status.wizard_completed) showBanner();
-    } catch (_) {}
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try {
+        const status = await fetch('/setup/status').then(r => r.json());
+        if (!status.wizard_completed) showBanner();
+        break;
+      } catch (_) {
+        if (attempt < 4) await new Promise(r => setTimeout(r, 1200));
+      }
+    }
   })();
 
   load();

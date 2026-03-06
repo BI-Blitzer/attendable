@@ -53,7 +53,7 @@ def run(source: str | None, verbose: bool):
 
 
 @cli.command()
-@click.option("--host", default="0.0.0.0", show_default=True)
+@click.option("--host", default="127.0.0.1", show_default=True)
 @click.option("--port", default=8000, show_default=True)
 @click.option("--reload", is_flag=True, default=False)
 @click.option("--verbose", "-v", is_flag=True, default=False, help="Show debug-level logs")
