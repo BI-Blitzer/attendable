@@ -116,11 +116,15 @@ _HTML = """<!DOCTYPE html>
     .kpi-warn .kpi-dot { color: #d97706; }
     .kpi-err  .kpi-dot { color: #dc2626; }
     .kpi-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .kpi-endpoint { color: #bbb; font-size: 0.68rem; }
     .kpi-count {
       font-size: 0.7rem; font-weight: 600; color: #888;
       background: #f0f0f5; border-radius: 10px;
       padding: 0.05rem 0.4rem; white-space: nowrap;
     }
+    .kpi-badge { font-size: 0.65rem; font-weight: 600; border-radius: 8px; padding: 0.05rem 0.35rem; white-space: nowrap; flex-shrink: 0; }
+    .kpi-badge-err  { background: #fee2e2; color: #dc2626; }
+    .kpi-badge-warn { background: #fef3c7; color: #d97706; }
     .kpi-meta { font-size: 0.72rem; color: #888; line-height: 1.5; }
     .kpi-sep { height: 1px; background: #f0f0f0; margin: 0.6rem 0; }
 
@@ -1521,37 +1525,50 @@ _HTML = """<!DOCTYPE html>
       runAtEl.textContent = 'No runs yet';
     }
 
-    // Sources
-    const sourcesEl   = document.getElementById('kpiSources');
-    const srcCounts   = data.source_counts || {};
-    const srcEntries  = Object.entries(srcCounts);
-    if (srcEntries.length) {
-      const labels = { eventbrite:'Eventbrite', meetup:'Meetup', luma:'Lu.ma', web_search:'Web Search' };
-      sourcesEl.innerHTML = srcEntries.map(([src, count]) => {
-        const ok    = count > 0;
-        const label = labels[src] || src;
-        return `<div class="kpi-row ${ok ? 'kpi-ok' : 'kpi-warn'}">
+    // Sources — always show enabled scrapers with endpoints; counts added after a run
+    const sourcesEl    = document.getElementById('kpiSources');
+    const enabledSrcs  = data.enabled_sources || [];
+    const srcCounts    = data.source_counts   || {};
+    const searchProv   = data.search_provider || 'DuckDuckGo';
+    const srcMeta = {
+      eventbrite: { label: 'Eventbrite', endpoint: 'eventbrite.com' },
+      meetup:     { label: 'Meetup',     endpoint: 'meetup.com'     },
+      luma:       { label: 'Luma',       endpoint: 'lu.ma'          },
+      web_search: { label: 'Web Search', endpoint: searchProv       },
+    };
+    if (enabledSrcs.length) {
+      sourcesEl.innerHTML = enabledSrcs.map(src => {
+        const m     = srcMeta[src] || { label: src, endpoint: '' };
+        const count = srcCounts[src];
+        return `<div class="kpi-row kpi-ok">
           <span class="kpi-dot">●</span>
-          <span class="kpi-name">${label}</span>
-          <span class="kpi-count">${count}</span>
+          <span class="kpi-name">${m.label}<span class="kpi-endpoint"> · ${m.endpoint}</span></span>
+          ${count != null ? `<span class="kpi-count">${count}</span>` : ''}
         </div>`;
       }).join('');
     } else {
-      sourcesEl.innerHTML = '<div class="kpi-meta">No data yet</div>';
+      sourcesEl.innerHTML = '<div class="kpi-meta">No sources enabled</div>';
     }
 
-    // API keys
+    // API Keys — configured = green; needs attention = red ⚠; fallback = amber
     const keysEl  = document.getElementById('kpiApiKeys');
     const apiStat = data.api_status || {};
     if (Object.keys(apiStat).length) {
       keysEl.innerHTML = Object.entries(apiStat).map(([name, status]) => {
-        const ok = status === 'configured';
-        return `<div class="kpi-row ${ok ? 'kpi-ok' : 'kpi-err'}">
+        const cls   = status === 'active' ? 'kpi-ok' : status === 'fallback' ? 'kpi-warn' : 'kpi-err';
+        const badge = status === 'needs attention'
+          ? '<span class="kpi-badge kpi-badge-err">⚠ needs attention</span>'
+          : status === 'fallback'
+          ? '<span class="kpi-badge kpi-badge-warn">fallback</span>'
+          : '';
+        return `<div class="kpi-row ${cls}">
           <span class="kpi-dot">●</span>
           <span class="kpi-name">${name}</span>
-          ${!ok ? '<span class="kpi-count" style="background:#fee2e2;color:#dc2626">!</span>' : ''}
+          ${badge}
         </div>`;
       }).join('');
+    } else {
+      keysEl.innerHTML = '<div class="kpi-meta">Not configured</div>';
     }
   }
 

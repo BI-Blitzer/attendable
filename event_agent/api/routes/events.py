@@ -359,10 +359,34 @@ async def get_stats():
         llm_name = "LLM"
         llm_ok = bool(s.llm_api_key)
 
-    stats["api_status"] = {
-        llm_name:       "configured" if llm_ok        else "key missing",
-        "Brave Search": "configured" if s.brave_api_key  else "key missing",
-        "SerpAPI":      "configured" if s.serp_api_key   else "key missing",
-        "SearXNG":      "configured" if s.searxng_url    else "not set",
-    }
+    # API keys — only show configured providers (green) + missing critical ones (red)
+    api_keys: dict = {}
+    if llm_ok:
+        api_keys[llm_name] = "active"
+    else:
+        api_keys["LLM"] = "needs attention"
+
+    if s.brave_api_key:
+        api_keys["Brave Search"] = "active"
+    if s.serp_api_key:
+        api_keys["SerpAPI"] = "active"
+    if s.searxng_url:
+        api_keys["SearXNG"] = "active"
+    if not s.brave_api_key and not s.serp_api_key and not s.searxng_url:
+        api_keys["Search"] = "fallback"   # DuckDuckGo silent fallback
+
+    stats["api_status"] = api_keys
+
+    # Active search provider name (for Sources endpoint label)
+    if s.brave_api_key:
+        search_provider = "Brave Search"
+    elif s.serp_api_key:
+        search_provider = "SerpAPI"
+    elif s.searxng_url:
+        search_provider = "SearXNG"
+    else:
+        search_provider = "DuckDuckGo"
+
+    stats["enabled_sources"] = s.enabled_sources
+    stats["search_provider"] = search_provider
     return stats
