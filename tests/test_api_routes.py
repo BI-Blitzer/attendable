@@ -148,18 +148,12 @@ async def test_list_events_filter_params_forwarded(app):
 @pytest.mark.asyncio
 async def test_get_event_returns_detail(app, mock_session):
     fake = _fake_event()
-    with patch("event_agent.api.routes.events.EventRepository") as MockRepo:
-        mock_repo = AsyncMock()
-        MockRepo.return_value = mock_repo
-        mock_repo.get_event.return_value = fake
+    result_mock = MagicMock()
+    result_mock.scalar_one_or_none.return_value = fake
+    mock_session.execute.return_value = result_mock
 
-        # Route does a second session.execute for selectinload
-        result_mock = MagicMock()
-        result_mock.scalar_one_or_none.return_value = fake
-        mock_session.execute.return_value = result_mock
-
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            resp = await client.get(f"/events/{FAKE_ID}")
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        resp = await client.get(f"/events/{FAKE_ID}")
 
     assert resp.status_code == 200
     data = resp.json()
@@ -171,14 +165,13 @@ async def test_get_event_returns_detail(app, mock_session):
 
 
 @pytest.mark.asyncio
-async def test_get_event_not_found(app):
-    with patch("event_agent.api.routes.events.EventRepository") as MockRepo:
-        mock_repo = AsyncMock()
-        MockRepo.return_value = mock_repo
-        mock_repo.get_event.return_value = None
+async def test_get_event_not_found(app, mock_session):
+    result_mock = MagicMock()
+    result_mock.scalar_one_or_none.return_value = None
+    mock_session.execute.return_value = result_mock
 
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            resp = await client.get(f"/events/{uuid.uuid4()}")
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        resp = await client.get(f"/events/{uuid.uuid4()}")
 
     assert resp.status_code == 404
 

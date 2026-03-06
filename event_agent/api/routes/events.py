@@ -261,18 +261,11 @@ def _ical_esc(s: str) -> str:
 
 @router.get("/events/{event_id}", response_model=EventDetail)
 async def get_event(event_id: uuid.UUID, session: AsyncSession = Depends(get_session)):
-    repo = EventRepository(session)
-    event = await repo.get_event(event_id)
-    if not event:
-        raise HTTPException(status_code=404, detail="Event not found")
-
-    detail = EventDetail.model_validate(event)
-
-    # Manually load relations (lazy loading not available with async)
     from sqlalchemy.orm import selectinload
     from sqlalchemy import select
     from event_agent.db.models import Event
 
+    # Load all relationships eagerly — async SQLAlchemy cannot lazy-load outside a greenlet
     result = await session.execute(
         select(Event)
         .options(
@@ -280,15 +273,19 @@ async def get_event(event_id: uuid.UUID, session: AsyncSession = Depends(get_ses
             selectinload(Event.sponsors),
             selectinload(Event.tags),
             selectinload(Event.speakers),
+            selectinload(Event.interest),
         )
         .where(Event.id == event_id)
     )
-    full_event = result.scalar_one_or_none()
-    if full_event:
-        detail.organizers = [CompanyOut.model_validate(c) for c in full_event.organizers]
-        detail.sponsors = [CompanyOut.model_validate(c) for c in full_event.sponsors]
-        detail.tags = [TagOut.model_validate(t) for t in full_event.tags]
+    event = result.scalar_one_or_none()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
 
+    detail = EventDetail.model_validate(event)
+    detail.organizers = [CompanyOut.model_validate(c) for c in event.organizers]
+    detail.sponsors = [CompanyOut.model_validate(c) for c in event.sponsors]
+    detail.tags = [TagOut.model_validate(t) for t in event.tags]
+    detail.interest_status = event.interest.status.value if event.interest else None
     return detail
 
 
