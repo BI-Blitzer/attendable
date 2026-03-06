@@ -1,0 +1,34 @@
+# Secrets — never commit
+.env
+
+# SQLite database
+*.db
+*.db-shm
+*.db-wal
+
+# Runtime state
+config.json
+run_stats.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+.venv/
+.uv/
+
+# Tools
+.pytest_cache/
+.mypy_cache/
+.claude/
+
+# Docker (Pinokio handles deployment; no Docker needed)
+Dockerfile
+docker-compose.yml
+
+# Backups (auto-created by update.js and the UI backup endpoint)
+backups/
+
+# Logs
+*.log
