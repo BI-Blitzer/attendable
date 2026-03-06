@@ -1,8 +1,12 @@
 """CLI entry point for event-agent."""
 import asyncio
 import logging
+import tomllib
+from pathlib import Path
 import click
 import uvicorn
+
+_VERSION = tomllib.loads((Path(__file__).parent / "pyproject.toml").read_text())["project"]["version"]
 
 
 def _configure_logging(verbose: bool = False) -> None:
@@ -59,7 +63,7 @@ def serve(host: str, port: int, reload: bool, verbose: bool):
     click.echo(
         "\n"
         "  ╔══════════════════════════════════════╗\n"
-        "  ║          Attendable  v0.1.0          ║\n"
+        f"  ║{f'Attendable  v{_VERSION}'.center(38)}║\n"
         "  ║  AI-powered tech & BI event discovery ║\n"
         "  ╚══════════════════════════════════════╝\n"
         f"  → http://localhost:{port}\n"
