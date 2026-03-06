@@ -146,16 +146,17 @@ _HTML = """<!DOCTYPE html>
       padding: 1rem; cursor: pointer;
       transition: box-shadow 0.15s, transform 0.1s;
       text-decoration: none; color: inherit;
-      display: flex; flex-direction: column;
+      display: flex; flex-direction: row; gap: 0.5rem; align-items: flex-start;
       position: relative;
     }
     .card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.11); transform: translateY(-1px); }
 
-    /* ── Top row: flag | title | dismiss ── */
-    .card-top { display: flex; align-items: flex-start; gap: 0.4rem; margin-bottom: 0.45rem; }
-    .card-title { flex: 1; font-weight: 600; font-size: 0.875rem; line-height: 1.35; }
+    /* ── Card layout: content column + right-side actions column ── */
+    .card-content { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+    .card-title { font-weight: 600; font-size: 0.875rem; line-height: 1.35; margin-bottom: 0.45rem; }
+    .card-actions { display: flex; flex-direction: column; gap: 0.15rem; align-items: center; flex-shrink: 0; }
 
-    .card-flag-btn, .card-dismiss-btn {
+    .card-flag-btn, .card-dismiss-btn, .card-attend-btn {
       flex-shrink: 0; background: none; border: none; cursor: pointer;
       width: 26px; height: 26px; padding: 0; border-radius: 5px;
       display: flex; align-items: center; justify-content: center;
@@ -163,10 +164,13 @@ _HTML = """<!DOCTYPE html>
     }
     .card-flag-btn    { color: #ccc; }
     .card-dismiss-btn { color: #ccc; }
+    .card-attend-btn  { color: #ccc; font-size: 0.78rem; }
     .card-flag-btn:hover    { background: #fef9c3; color: #ca8a04; }
     .card-dismiss-btn:hover { background: #fee2e2; color: #dc2626; }
+    .card-attend-btn:hover  { background: #f0fdf4; color: #1a8a4a; }
     .card-flag-btn.active    { color: #ca8a04; background: #fef9c3; }
     .card-dismiss-btn.active { color: #dc2626; background: #fee2e2; }
+    .card-attend-btn.active  { color: #1a8a4a; background: #f0fdf4; }
 
     .badges { display: flex; gap: 0.25rem; flex-wrap: wrap; margin-bottom: 0.45rem; }
     .badge { font-size: 0.66rem; font-weight: 500; padding: 0.16rem 0.45rem; border-radius: 100px; white-space: nowrap; }
@@ -189,21 +193,9 @@ _HTML = """<!DOCTYPE html>
     }
     .tag-chip:hover { background: #e8f4fd; color: #0071e3; }
 
-    /* ── Footer row: source | attending ── */
-    .card-footer {
-      display: flex; justify-content: space-between; align-items: center;
-      margin-top: auto; padding-top: 0.55rem;
-    }
+    /* ── Card footer: source label only ── */
+    .card-footer { margin-top: auto; padding-top: 0.4rem; }
     .card-source { font-size: 0.66rem; color: #c0c0c0; text-transform: uppercase; letter-spacing: 0.05em; }
-    .card-attend-btn {
-      background: none; border: 1px solid #e0e0e0; cursor: pointer;
-      border-radius: 5px; padding: 0.2rem 0.55rem;
-      font-size: 0.7rem; font-family: inherit; color: #aaa;
-      display: flex; align-items: center; gap: 0.3rem;
-      transition: border-color 0.12s, color 0.12s, background 0.12s;
-    }
-    .card-attend-btn:hover { border-color: #1a8a4a; color: #1a8a4a; }
-    .card-attend-btn.active { border-color: #1a8a4a; color: #1a8a4a; background: #f0fdf4; }
 
     .empty, .loading { text-align: center; padding: 4rem 2rem; color: #bbb; grid-column: 1/-1; font-size: 0.9rem; }
 
@@ -287,13 +279,15 @@ _HTML = """<!DOCTYPE html>
     }
     .tw-body.collapsed { display: none; }
     .uc {
-      display: flex; flex-direction: column; gap: 0.2rem;
+      display: flex; flex-direction: row; gap: 0.4rem; align-items: stretch;
       padding: 0.45rem 0.7rem; border-radius: 8px; border: 1px solid #e0e0e0;
       text-decoration: none; color: inherit;
-      min-width: 160px; max-width: 240px; flex-shrink: 0;
+      min-width: 170px; max-width: 260px; flex-shrink: 0;
       transition: box-shadow 0.12s;
     }
     .uc:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .uc-content { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.2rem; }
+    .uc-actions { display: flex; flex-direction: column; gap: 0.1rem; align-items: center; justify-content: space-around; flex-shrink: 0; border-left: 1px solid rgba(0,0,0,0.07); padding-left: 0.4rem; }
     .uc.uc-today    { border-color: #fca5a5; background: #fff5f5; }
     .uc.uc-tomorrow { border-color: #fcd34d; background: #fffbeb; }
     .uc.uc-soon     { border-color: #86efac; background: #f0fdf4; }
@@ -1051,13 +1045,17 @@ _HTML = """<!DOCTYPE html>
     return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   }
 
+  function openEventUrl(url) {
+    if (url) window.open(url, '_blank');
+  }
+
   // ── Card action buttons ───────────────────────────────────────────────────
   // Each button maps to one status. Clicking when already active clears it.
   async function toggleStatus(evt, eventId, targetStatus, btnEl) {
     evt.preventDefault();
     evt.stopPropagation();
 
-    const card    = btnEl.closest('.card');
+    const card    = btnEl.closest('.card, .uc');
     const current = card.dataset.status || null;
     const next    = (current === targetStatus) ? null : targetStatus;
 
@@ -1070,8 +1068,9 @@ _HTML = """<!DOCTYPE html>
     card.dataset.status = next || '';
     _syncCardButtons(card, next);
 
-    // If dismissed with hide-noted on, fade the card out
-    if (next === 'noted' && document.getElementById('fHideNoted').checked) {
+    // If dismissed, fade out — always for urgency strip, or when hide-noted is on for main list
+    const isUrgency = card.classList.contains('uc');
+    if (next === 'noted' && (isUrgency || document.getElementById('fHideNoted').checked)) {
       card.style.transition = 'opacity 0.4s';
       card.style.opacity = '0';
       setTimeout(() => card.remove(), 450);
@@ -1123,30 +1122,28 @@ _HTML = """<!DOCTYPE html>
     ).join('');
 
     return `
-      <div class="card" onclick="openDrawer('${e.id}')"
+      <div class="card" onclick="openEventUrl('${(e.event_url || '').replace(/'/g, "\\'")}')"
            data-id="${e.id}" data-status="${status || ''}">
-        <div class="card-top">
-          <button class="card-flag-btn ${isFlagged ? 'active' : ''}"
-            title="${isFlagged ? 'Flagged for review — click to unflag' : 'Flag for review'}"
-            onclick="toggleStatus(event, '${e.id}', 'interested', this)">🚩</button>
+        <div class="card-content">
           <div class="card-title">${e.title}</div>
-          <button class="card-dismiss-btn ${isDismissed ? 'active' : ''}"
-            title="${isDismissed ? 'Dismissed — click to restore' : 'Dismiss this event'}"
-            onclick="toggleStatus(event, '${e.id}', 'noted', this)">✕</button>
+          <div class="badges">${typeBadge}${costBadge}</div>
+          <div class="card-meta">
+            <div class="meta-row">${calIcon}${fmtDate(e.start_datetime)}${fmtTime(e.start_datetime) ? ' · ' + fmtTime(e.start_datetime) : ''}</div>
+            <div class="meta-row">${pinIcon}${loc}${dist}</div>
+          </div>
+          ${tagChips ? `<div class="card-tags">${tagChips}</div>` : ''}
+          <div class="card-footer"><span class="card-source">${e.source}</span></div>
         </div>
-        <div class="badges">${typeBadge}${costBadge}</div>
-        <div class="card-meta">
-          <div class="meta-row">${calIcon}${fmtDate(e.start_datetime)}${fmtTime(e.start_datetime) ? ' · ' + fmtTime(e.start_datetime) : ''}</div>
-          <div class="meta-row">${pinIcon}${loc}${dist}</div>
-        </div>
-        ${tagChips ? `<div class="card-tags">${tagChips}</div>` : ''}
-        <div class="card-footer">
-          <span class="card-source">${e.source}</span>
+        <div class="card-actions">
+          <button class="card-flag-btn ${isFlagged ? 'active' : ''}"
+            title="${isFlagged ? 'Flagged — click to unflag' : 'Flag for review'}"
+            onclick="toggleStatus(event, '${e.id}', 'interested', this)">🚩</button>
           <button class="card-attend-btn ${isAttending ? 'active' : ''}"
             title="${isAttending ? 'Attending — click to unmark' : 'Mark as attending'}"
-            onclick="toggleStatus(event, '${e.id}', 'attending', this)">
-            <span>${isAttending ? '☑' : '☐'}</span> Attending
-          </button>
+            onclick="toggleStatus(event, '${e.id}', 'attending', this)"><span>${isAttending ? '☑' : '☐'}</span></button>
+          <button class="card-dismiss-btn ${isDismissed ? 'active' : ''}"
+            title="${isDismissed ? 'Dismissed — click to restore' : 'Dismiss'}"
+            onclick="toggleStatus(event, '${e.id}', 'noted', this)">✕</button>
         </div>
       </div>`;
   }
@@ -1483,10 +1480,27 @@ _HTML = """<!DOCTYPE html>
       const loc  = [e.city, e.state].filter(Boolean).join(', ') || (e.event_type === 'virtual' ? 'Online' : '');
       const time = fmtTime(e.start_datetime);
       const meta = [time, loc].filter(Boolean).join(' · ');
-      return `<div class="uc ${info.cardCls}" onclick="openDrawer('${e.id}')" style="cursor:pointer">
-        <span class="ub ${info.badgeCls}">${info.label}</span>
-        <span class="uc-title">${e.title}</span>
-        ${meta ? `<span class="uc-meta">${meta}</span>` : ''}
+      const twFlagged   = e.interest_status === 'interested';
+      const twAttending = e.interest_status === 'attending';
+      const twDismissed = e.interest_status === 'noted';
+      return `<div class="uc ${info.cardCls}" onclick="openEventUrl('${(e.event_url || '').replace(/'/g, "\\'")}')"
+           data-id="${e.id}" data-status="${e.interest_status || ''}" style="cursor:pointer">
+        <div class="uc-content">
+          <span class="ub ${info.badgeCls}">${info.label}</span>
+          <span class="uc-title">${e.title}</span>
+          ${meta ? `<span class="uc-meta">${meta}</span>` : ''}
+        </div>
+        <div class="uc-actions">
+          <button class="card-flag-btn ${twFlagged ? 'active' : ''}"
+            title="${twFlagged ? 'Flagged — click to unflag' : 'Flag for review'}"
+            onclick="toggleStatus(event, '${e.id}', 'interested', this)">🚩</button>
+          <button class="card-attend-btn ${twAttending ? 'active' : ''}"
+            title="${twAttending ? 'Attending — click to unmark' : 'Mark as attending'}"
+            onclick="toggleStatus(event, '${e.id}', 'attending', this)"><span>${twAttending ? '☑' : '☐'}</span></button>
+          <button class="card-dismiss-btn ${twDismissed ? 'active' : ''}"
+            title="${twDismissed ? 'Dismissed — click to restore' : 'Dismiss'}"
+            onclick="toggleStatus(event, '${e.id}', 'noted', this)">✕</button>
+        </div>
       </div>`;
     }).join('');
 
