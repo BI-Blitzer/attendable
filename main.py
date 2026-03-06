@@ -24,7 +24,7 @@ def _configure_logging(verbose: bool = False) -> None:
 
 @click.group()
 def cli():
-    """Attendable - AI-powered tech & BI event discovery."""
+    """Attendable - AI Powered Event Discovery."""
 
 
 @cli.command()
@@ -64,7 +64,7 @@ def serve(host: str, port: int, reload: bool, verbose: bool):
         "\n"
         "  ╔══════════════════════════════════════╗\n"
         f"  ║{f'Attendable  v{_VERSION}'.center(38)}║\n"
-        "  ║  AI-powered tech & BI event discovery ║\n"
+        f"  ║{'AI Powered Event Discovery'.center(38)}║\n"
         "  ╚══════════════════════════════════════╝\n"
         f"  → http://localhost:{port}\n"
     )

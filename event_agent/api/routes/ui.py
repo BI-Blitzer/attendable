@@ -819,7 +819,7 @@ _HTML = """<!DOCTYPE html>
 </div>
 
 <!-- Setup Wizard Overlay -->
-<div id="setupOverlay" style="display:none" onclick="handleOverlayClick(event)">
+<div id="setupOverlay" style="display:none">
   <div id="setupCard" onclick="event.stopPropagation()">
     <div id="setupCardHeader">
       <h2 id="setupCardTitle">Welcome to Attendable</h2>
@@ -1726,7 +1726,6 @@ _HTML = """<!DOCTYPE html>
     if (ev.key === 'Escape') {
       closeDrawer();
       if (document.getElementById('settingsOverlay').style.display !== 'none') closeSettings();
-      if (_wizardOpenedViaGear) closeSetupWizard();
     }
   });
 
@@ -2091,12 +2090,6 @@ _HTML = """<!DOCTYPE html>
   function closeSetupWizard() {
     document.getElementById('setupOverlay').style.display = 'none';
     document.body.style.overflow = '';
-  }
-
-  function handleOverlayClick(ev) {
-    if (ev.target === document.getElementById('setupOverlay') && _wizardOpenedViaGear) {
-      closeSetupWizard();
-    }
   }
 
   function _renderWizardStep() {

@@ -50,8 +50,8 @@ async def lifespan(app: FastAPI):
 def create_app() -> FastAPI:
     application = FastAPI(
         title="Attendable",
-        description="AI-powered tech & BI event discovery",
-        version="0.1.0",
+        description="AI Powered Event Discovery",
+        version="0.25.0a1",
         lifespan=lifespan,
     )
     application.include_router(ui_router.router)
