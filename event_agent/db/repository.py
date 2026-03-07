@@ -340,7 +340,7 @@ class EventRepository:
         search: str | None = None,
         event_type: str | None = None,
         source: str | None = None,
-        tag: str | None = None,
+        tags: list[str] | None = None,
         from_date: datetime | None = None,
         to_date: datetime | None = None,
         max_distance_miles: float | None = None,
@@ -365,8 +365,14 @@ class EventRepository:
             )
         if free_only:
             q = q.where(Event.cost_type == CostType.free)
-        if tag:
-            q = q.join(Event.tags).where(Tag.name == tag.lower())
+        if tags:
+            tag_sq = (
+                select(event_tags.c.event_id)
+                .join(Tag, Tag.id == event_tags.c.tag_id)
+                .where(Tag.name.in_([t.lower() for t in tags]))
+                .scalar_subquery()
+            )
+            q = q.where(Event.id.in_(tag_sq))
         if hide_noted:
             noted_ids = (
                 select(EventInterest.event_id)
@@ -390,7 +396,7 @@ class EventRepository:
         search: str | None = None,
         event_type: str | None = None,
         source: str | None = None,
-        tag: str | None = None,
+        tags: list[str] | None = None,
         from_date: datetime | None = None,
         to_date: datetime | None = None,
         max_distance_miles: float | None = None,
@@ -404,7 +410,7 @@ class EventRepository:
             .options(selectinload(Event.tags), selectinload(Event.interest))
         )
         q = self._apply_event_filters(
-            q, search, event_type, source, tag,
+            q, search, event_type, source, tags,
             from_date, to_date, max_distance_miles, free_only, hide_noted,
             interest_statuses,
         )
@@ -418,7 +424,7 @@ class EventRepository:
         search: str | None = None,
         event_type: str | None = None,
         source: str | None = None,
-        tag: str | None = None,
+        tags: list[str] | None = None,
         from_date: datetime | None = None,
         to_date: datetime | None = None,
         max_distance_miles: float | None = None,
@@ -433,7 +439,7 @@ class EventRepository:
             .where(Event.canonical_event_id.is_(None))
         )
         q = self._apply_event_filters(
-            q, search, event_type, source, tag,
+            q, search, event_type, source, tags,
             from_date, to_date, max_distance_miles, free_only, hide_noted,
             interest_statuses,
         )

@@ -63,8 +63,7 @@ _HTML = """<!DOCTYPE html>
     .toggle-btn.active { background: #0071e3; color: white; }
     .toggle-btn:hover:not(.active) { background: #f0f0f5; }
 
-    #activeTagWrap { display: none; align-items: center; gap: 0.3rem; }
-    #activeTagWrap.visible { display: flex; }
+    #activeTagWrap { display: flex; align-items: center; gap: 0.3rem; flex-wrap: wrap; }
     .active-tag-chip {
       display: flex; align-items: center; gap: 0.3rem;
       background: #e8f4fd; color: #0071e3;
@@ -695,12 +694,7 @@ _HTML = """<!DOCTYPE html>
   <label><input type="checkbox" id="fFree"> Free only</label>
   <label><input type="checkbox" id="fHideNoted" checked> Hide noted</label>
   <button id="tagsPopoutBtn" onclick="toggleTagsPopout(event)">🏷 Tags</button>
-  <div id="activeTagWrap">
-    <div class="active-tag-chip">
-      <span id="activeTagLabel"></span>
-      <button onclick="clearTag()" title="Remove tag filter">×</button>
-    </div>
-  </div>
+  <div id="activeTagWrap"></div>
   <div class="view-toggle">
     <button id="btnList" class="toggle-btn active" onclick="setView('list')">☰ List</button>
     <button id="btnCal"  class="toggle-btn"        onclick="setView('calendar')">📅 Calendar</button>
@@ -765,6 +759,7 @@ _HTML = """<!DOCTYPE html>
 <div id="tagsPopout" style="display:none">
   <div class="tp-search">
     <input type="text" id="tpSearch" placeholder="Search tags…" oninput="renderTagsPopout()">
+    <div style="font-size:.68rem;color:#aaa;padding:.2rem .1rem 0">Ctrl/⌘ multi-select · Shift range</div>
   </div>
   <div class="tp-list" id="tpList"></div>
   <div class="tp-zero-toggle" id="tpZeroToggle" style="display:none" onclick="toggleZeroTags()"></div>
@@ -857,7 +852,8 @@ _HTML = """<!DOCTYPE html>
   const LIMIT = 24;
   const _ea  = s => String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;');  // safe HTML attr value
   let page = 1;
-  let activeTag = '';
+  let activeTags = new Set();
+  let _lastTagIdx = -1;   // for shift-range selection
   let viewMode = 'list';
 
   // Calendar state
@@ -889,19 +885,49 @@ _HTML = """<!DOCTYPE html>
     };
   }
 
-  function setTag(name) {
-    activeTag = name;
-    document.getElementById('activeTagLabel').textContent = name;
-    document.getElementById('activeTagWrap').classList.toggle('visible', !!name);
+  function _renderActiveTags() {
+    const wrap = document.getElementById('activeTagWrap');
+    if (!activeTags.size) { wrap.innerHTML = ''; return; }
+    wrap.innerHTML = [...activeTags].map(t =>
+      `<div class="active-tag-chip">${_ea(t)}<button onclick="removeActiveTag(${JSON.stringify(t)})" title="Remove">×</button></div>`
+    ).join('');
+    document.getElementById('tagsPopoutBtn').classList.add('has-active');
   }
-  function clearTag() {
-    setTag('');
-    document.getElementById('tagsPopoutBtn').classList.remove('has-active');
+  function removeActiveTag(name) {
+    activeTags.delete(name);
+    if (!activeTags.size) document.getElementById('tagsPopoutBtn').classList.remove('has-active');
+    _renderActiveTags();
+    if (typeof renderTagsPopout === 'function') renderTagsPopout();
     page = 1; load();
   }
-  function filterByTag(name) {
-    setTag(name);
-    document.getElementById('tagsPopoutBtn').classList.toggle('has-active', !!name);
+  function clearTag() {
+    activeTags.clear();
+    _lastTagIdx = -1;
+    document.getElementById('tagsPopoutBtn').classList.remove('has-active');
+    _renderActiveTags();
+    page = 1; load();
+  }
+  function filterByTag(name, ev) {
+    const tagList = _allTags.map(t => t.name);
+    const idx = tagList.indexOf(name);
+    if (ev && (ev.ctrlKey || ev.metaKey)) {
+      // Ctrl/Cmd: toggle this tag
+      if (activeTags.has(name)) activeTags.delete(name);
+      else { activeTags.add(name); _lastTagIdx = idx; }
+    } else if (ev && ev.shiftKey && _lastTagIdx >= 0 && idx >= 0) {
+      // Shift: select range
+      const [lo, hi] = [Math.min(idx, _lastTagIdx), Math.max(idx, _lastTagIdx)];
+      for (let i = lo; i <= hi; i++) activeTags.add(tagList[i]);
+    } else {
+      // Plain click: replace selection
+      activeTags.clear();
+      activeTags.add(name);
+      _lastTagIdx = idx;
+      closeTagsPopout();
+    }
+    document.getElementById('tagsPopoutBtn').classList.toggle('has-active', activeTags.size > 0);
+    _renderActiveTags();
+    if (typeof renderTagsPopout === 'function') renderTagsPopout();
     page = 1; load();
   }
 
@@ -914,9 +940,7 @@ _HTML = """<!DOCTYPE html>
     document.getElementById('fUpcoming').checked  = true;
     document.getElementById('fFree').checked      = false;
     document.getElementById('fHideNoted').checked = true;
-    setTag('');
-    document.getElementById('tagsPopoutBtn').classList.remove('has-active');
-    page = 1; load();
+    clearTag();
   }
 
   // ── Tags Popout ──────────────────────────────────────────────────────────
@@ -964,9 +988,9 @@ _HTML = """<!DOCTYPE html>
     const zeroPend  = _userKeywords.filter(k => !q || k.toLowerCase().includes(q));
 
     document.getElementById('tpList').innerHTML = withCount.map(t => `
-      <div class="tp-tag ${t.name === activeTag ? 'active' : ''}"
+      <div class="tp-tag ${activeTags.has(t.name) ? 'active' : ''}"
            data-tag="${_ea(t.name)}"
-           onclick="filterByTag(this.dataset.tag);closeTagsPopout()">
+           onclick="filterByTag(this.dataset.tag, event)">
         🏷 ${_ea(t.name)}<span class="tp-count">${t.count}</span>
       </div>`).join('') ||
       '<div style="padding:.5rem .75rem;font-size:.78rem;color:#bbb">No tags yet — run the pipeline first.</div>';
@@ -980,7 +1004,7 @@ _HTML = """<!DOCTYPE html>
       if (_tagsZeroOpen) {
         zeroList.style.display = '';
         zeroList.innerHTML =
-          zeroDB.map(t => `<div class="tp-zero-item" data-tag="${_ea(t.name)}" onclick="filterByTag(this.dataset.tag);closeTagsPopout()">🏷 ${_ea(t.name)}</div>`).join('') +
+          zeroDB.map(t => `<div class="tp-zero-item" data-tag="${_ea(t.name)}" onclick="filterByTag(this.dataset.tag, event)">🏷 ${_ea(t.name)}</div>`).join('') +
           zeroPend.map(k => `<div class="tp-zero-item kw-pending" title="Pending search term — will be searched next pipeline run">🔍 ${_ea(k)}</div>`).join('');
       } else {
         zeroList.style.display = 'none';
@@ -1166,7 +1190,7 @@ _HTML = """<!DOCTYPE html>
     if (f.upcoming)  p.set('from_date', new Date().toISOString());
     if (f.free)      p.set('free_only', 'true');
     if (!f.hideNoted) p.set('hide_noted', 'false');
-    if (activeTag)   p.set('tag', activeTag);
+    activeTags.forEach(t => p.append('tag', t));
 
     try {
       const [eventsRes, countRes] = await Promise.all([
@@ -1188,7 +1212,7 @@ _HTML = """<!DOCTYPE html>
       const to      = (page - 1) * LIMIT + events.length;
       const totalStr = total !== null ? ` of ${total}` : '';
       document.getElementById('status').textContent =
-        `Showing ${from}–${to}${totalStr} events${activeTag ? ' · tag: ' + activeTag : ''}`;
+        `Showing ${from}–${to}${totalStr} events${activeTags.size ? ' · tags: ' + [...activeTags].join(', ') : ''}`;
 
       const pag  = document.getElementById('pagination');
       const prev = Object.assign(document.createElement('button'), { textContent: '← Prev', disabled: page === 1 });
@@ -1221,7 +1245,7 @@ _HTML = """<!DOCTYPE html>
     if (f.dist)       p.set('max_distance_miles', f.dist);
     if (f.free)       p.set('free_only', 'true');
     if (!f.hideNoted) p.set('hide_noted', 'false');
-    if (activeTag)    p.set('tag', activeTag);
+    activeTags.forEach(t => p.append('tag', t));
     // Calendar always scopes to upcoming events
     p.set('from_date', new Date().toISOString());
 
@@ -1300,7 +1324,7 @@ _HTML = """<!DOCTYPE html>
     const total = Object.values(byDate).flat().length;
     document.getElementById('mainContent').innerHTML = html;
     document.getElementById('status').textContent =
-      `${total} event${total !== 1 ? 's' : ''} in ${CAL_MONTHS[calMonth]} ${calYear}${activeTag ? ' · tag: ' + activeTag : ''}`;
+      `${total} event${total !== 1 ? 's' : ''} in ${CAL_MONTHS[calMonth]} ${calYear}${activeTags.size ? ' · tags: ' + [...activeTags].join(', ') : ''}`;
 
     if (calSelectedDate) selectCalDay(calSelectedDate);
   }
@@ -2452,7 +2476,7 @@ _HTML = """<!DOCTYPE html>
     p.set('from_date', new Date().toISOString());
     if (f.source)    p.set('source', f.source);
     if (f.eventType) p.set('event_type', f.eventType);
-    if (activeTag)   p.set('tag', activeTag);
+    activeTags.forEach(t => p.append('tag', t));
     if (filter !== 'all') p.set('interest_statuses', filter);
     const a = document.createElement('a');
     a.href = '/events/export.ics?' + p;
