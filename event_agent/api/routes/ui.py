@@ -898,14 +898,14 @@ _HTML = """<!DOCTYPE html>
     if (!activeTags.size) document.getElementById('tagsPopoutBtn').classList.remove('has-active');
     _renderActiveTags();
     if (typeof renderTagsPopout === 'function') renderTagsPopout();
-    page = 1; load();
+    page = 1; load(); loadThisWeek();
   }
   function clearTag() {
     activeTags.clear();
     _lastTagIdx = -1;
     document.getElementById('tagsPopoutBtn').classList.remove('has-active');
     _renderActiveTags();
-    page = 1; load();
+    page = 1; load(); loadThisWeek();
   }
   function filterByTag(name, ev) {
     if (ev) ev.stopPropagation();
@@ -929,10 +929,10 @@ _HTML = """<!DOCTYPE html>
     document.getElementById('tagsPopoutBtn').classList.toggle('has-active', activeTags.size > 0);
     _renderActiveTags();
     if (typeof renderTagsPopout === 'function') renderTagsPopout();
-    page = 1; load();
+    page = 1; load(); loadThisWeek();
   }
 
-  function applyFilters() { page = 1; load(); }
+  function applyFilters() { page = 1; load(); loadThisWeek(); }
   function resetFilters() {
     document.getElementById('fSearch').value      = '';
     document.getElementById('fSource').value      = '';
