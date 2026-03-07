@@ -1491,6 +1491,7 @@ _HTML = """<!DOCTYPE html>
       from_date: now.toISOString(), to_date: end.toISOString(),
       limit: 40, page: 1, hide_noted: 'true',
     });
+    activeTags.forEach(t => p.append('tag', t));
     try {
       const res = await fetch('/events?' + p);
       if (!res.ok) return;
@@ -1867,7 +1868,7 @@ _HTML = """<!DOCTYPE html>
         </div>`;
     }
     if (step === 2) {
-      const enabled = cfg.enabled_sources || ['eventbrite','meetup','luma','web_search'];
+      const enabled = (cfg.enabled_sources?.length) ? cfg.enabled_sources : ['eventbrite','meetup','luma','web_search'];
       const sourcesHtml = _SOURCES.map(s => `
         <label class="source-check-row">
           <input type="checkbox" id="wizSrc_${s.id}" ${enabled.includes(s.id)?'checked':''}>
@@ -2495,7 +2496,7 @@ _HTML = """<!DOCTYPE html>
     const rad = cfg.radius_miles || 120;
     const lat = cfg.center_lat != null ? cfg.center_lat : '';
     const lon = cfg.center_lon != null ? cfg.center_lon : '';
-    const enabled = cfg.enabled_sources || ['eventbrite','meetup','luma','web_search'];
+    const enabled = (cfg.enabled_sources?.length) ? cfg.enabled_sources : ['eventbrite','meetup','luma','web_search'];
     const sourcesHtml = _SOURCES.map(s => `
       <label class="source-check-row">
         <input type="checkbox" id="settSrc_${s.id}" ${enabled.includes(s.id)?'checked':''}>
