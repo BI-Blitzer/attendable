@@ -855,6 +855,7 @@ _HTML = """<!DOCTYPE html>
 
 <script>
   const LIMIT = 24;
+  const _ea  = s => String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;');  // safe HTML attr value
   let page = 1;
   let activeTag = '';
   let viewMode = 'list';
@@ -964,8 +965,9 @@ _HTML = """<!DOCTYPE html>
 
     document.getElementById('tpList').innerHTML = withCount.map(t => `
       <div class="tp-tag ${t.name === activeTag ? 'active' : ''}"
-           onclick="filterByTag(${JSON.stringify(t.name)});closeTagsPopout()">
-        🏷 ${t.name}<span class="tp-count">${t.count}</span>
+           data-tag="${_ea(t.name)}"
+           onclick="filterByTag(this.dataset.tag);closeTagsPopout()">
+        🏷 ${_ea(t.name)}<span class="tp-count">${t.count}</span>
       </div>`).join('') ||
       '<div style="padding:.5rem .75rem;font-size:.78rem;color:#bbb">No tags yet — run the pipeline first.</div>';
 
@@ -978,8 +980,8 @@ _HTML = """<!DOCTYPE html>
       if (_tagsZeroOpen) {
         zeroList.style.display = '';
         zeroList.innerHTML =
-          zeroDB.map(t => `<div class="tp-zero-item" onclick="filterByTag(${JSON.stringify(t.name)});closeTagsPopout()">🏷 ${t.name}</div>`).join('') +
-          zeroPend.map(k => `<div class="tp-zero-item kw-pending" title="Pending search term — will be searched next pipeline run">🔍 ${k}</div>`).join('');
+          zeroDB.map(t => `<div class="tp-zero-item" data-tag="${_ea(t.name)}" onclick="filterByTag(this.dataset.tag);closeTagsPopout()">🏷 ${_ea(t.name)}</div>`).join('') +
+          zeroPend.map(k => `<div class="tp-zero-item kw-pending" title="Pending search term — will be searched next pipeline run">🔍 ${_ea(k)}</div>`).join('');
       } else {
         zeroList.style.display = 'none';
       }
@@ -1118,7 +1120,7 @@ _HTML = """<!DOCTYPE html>
     const isAttending = status === 'attending';
 
     const tagChips = (e.tag_names || []).map(t =>
-      `<button class="tag-chip" onclick="event.stopPropagation();filterByTag('${t.replace(/'/g,"\\'")}');">${t}</button>`
+      `<button class="tag-chip" data-tag="${_ea(t)}" onclick="event.stopPropagation();filterByTag(this.dataset.tag);">${_ea(t)}</button>`
     ).join('');
 
     return `
@@ -1343,8 +1345,10 @@ _HTML = """<!DOCTYPE html>
   }
 
   // ── Run pipeline ──────────────────────────────────────────────────────────
-  let _pollTimer = null;
-  let _runStart  = null;
+  let _pollTimer    = null;
+  let _elapsedTimer = null;
+  let _runStart     = null;
+  let _currentStep  = '';
 
   function setRunStatus(cls, text) {
     const el = document.getElementById('runStatus');
@@ -1356,7 +1360,8 @@ _HTML = """<!DOCTYPE html>
     const btn = document.getElementById('btnRun');
     btn.disabled = true;
     _runStart = Date.now();
-    setRunStatus('running', '● Starting…');
+    _currentStep = 'Starting…';
+    setRunStatus('running', '● Starting… (0s)');
 
     try {
       const res  = await fetch('/run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
@@ -1371,13 +1376,22 @@ _HTML = """<!DOCTYPE html>
   }
 
   function pollRun(runId) {
+    // Tick elapsed time every second so the counter moves continuously
+    _elapsedTimer = setInterval(() => {
+      if (_runStart) {
+        const elapsed = Math.floor((Date.now() - _runStart) / 1000);
+        setRunStatus('running', `● Running… (${elapsed}s)`);
+      }
+    }, 1000);
+
+    // Poll run status every 3 seconds
     _pollTimer = setInterval(async () => {
-      const elapsed = Math.round((Date.now() - _runStart) / 1000);
       try {
         const res  = await fetch('/run/' + runId);
         const data = await res.json();
         if (data.status === 'complete') {
-          clearInterval(_pollTimer);
+          clearInterval(_pollTimer);   _pollTimer = null;
+          clearInterval(_elapsedTimer); _elapsedTimer = null;
           const s = data.summary || {};
           const newlyClassified = s.newly_classified ?? s.classified ?? '?';
           const alreadyKnown = s.already_classified ?? 0;
@@ -1391,12 +1405,12 @@ _HTML = """<!DOCTYPE html>
           loadTagsData();
           setTimeout(() => setRunStatus('', ''), 12000);
         } else if (data.status === 'error') {
-          clearInterval(_pollTimer);
+          clearInterval(_pollTimer);   _pollTimer = null;
+          clearInterval(_elapsedTimer); _elapsedTimer = null;
           setRunStatus('err', '✕ ' + (data.summary?.error || 'unknown error'));
           document.getElementById('btnRun').disabled = false;
         } else {
-          const step = data.step || 'Running…';
-          setRunStatus('running', `● ${step} (${elapsed}s)`);
+          _currentStep = data.step || 'Running…';
         }
       } catch (_) { /* network blip */ }
     }, 3000);
@@ -1652,7 +1666,7 @@ _HTML = """<!DOCTYPE html>
     const distStr = e.distance_miles != null ? ` · ${e.distance_miles} mi` : '';
 
     const tagChips = (e.tag_names || []).map(t =>
-      `<button class="tag-chip" onclick="closeDrawer();filterByTag('${t.replace(/'/g,"\\'")}');">${t}</button>`
+      `<button class="tag-chip" data-tag="${_ea(t)}" onclick="closeDrawer();filterByTag(this.dataset.tag);">${_ea(t)}</button>`
     ).join('');
 
     const orgList = (e.organizers || []).map(o => `
@@ -2579,7 +2593,14 @@ _HTML = """<!DOCTYPE html>
         fetch('/setup/status').then(r => r.json()),
       ]);
       _settingsCfg = cfgRes;
-      _settingsCfg._anthropic_set = statusRes.configured?.llm && !cfgRes.llm_api_base;
+      // Populate provider flags so pills/placeholders reflect actual .env state
+      _settingsCfg._anthropic_set = statusRes.active_llm === 'anthropic';
+      _settingsCfg._openai_set    = statusRes.active_llm === 'openai';
+      _settingsCfg._gemini_set    = statusRes.active_llm === 'google';
+      _settingsCfg._grok_set      = statusRes.active_llm === 'grok';
+      _settingsCfg._mistral_set   = statusRes.active_llm === 'mistral';
+      _settingsCfg._brave_set     = statusRes.active_search === 'brave';
+      _settingsCfg._serp_set      = statusRes.active_search === 'serpapi';
     } catch(_) { _settingsCfg = {}; }
     _settingsEnvVars = {};
     document.getElementById('settingsBody').innerHTML = _renderSettingsBody(_settingsCfg);

@@ -54,7 +54,7 @@ class DiscoveryAgent:
         if progress_callback:
             for scraper in self._scrapers:
                 label = scraper.source_name.replace("_", " ").title()
-                progress_callback(f"Scraping {label}…")
+                progress_callback(f"Fetching {label}…")
                 try:
                     events = await scraper.fetch(self._keywords)
                     all_events.extend(events)

@@ -60,9 +60,11 @@ class AgentCrew:
         logger.info("AgentCrew: discovered %d raw events", len(raw_events))
 
         # Step 2: Location filter
-        _progress(f"Filtering {len(raw_events)} events by location…")
         located: list[tuple[RawEvent, dict]] = []
-        for raw_event in raw_events:
+        total_raw = len(raw_events)
+        for idx, raw_event in enumerate(raw_events):
+            if idx % 50 == 0:
+                _progress(f"Locating {idx} / {total_raw}…")
             geo_data = self._location_agent.process(raw_event)
             if geo_data is not None:
                 located.append((raw_event, geo_data))

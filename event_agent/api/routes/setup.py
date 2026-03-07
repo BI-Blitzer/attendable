@@ -42,9 +42,54 @@ async def setup_status():
     )
     overrides = _load_overrides()
     wizard_completed = overrides.get("wizard_completed", False)
+
+    # Identify active LLM provider for settings panel pre-selection
+    llm_model = (s.llm_model or "").lower()
+    if s.anthropic_api_key and not s.llm_api_base:
+        active_llm = "anthropic"
+    elif s.openai_api_key:
+        active_llm = "openai"
+    elif s.gemini_api_key:
+        active_llm = "google"
+    elif s.xai_api_key:
+        active_llm = "grok"
+    elif s.mistral_api_key:
+        active_llm = "mistral"
+    elif s.llm_api_base:
+        if "11434" in s.llm_api_base:
+            active_llm = "ollama"
+        elif "1234" in s.llm_api_base:
+            active_llm = "lmstudio"
+        else:
+            active_llm = "custom"
+    elif "claude" in llm_model:
+        active_llm = "anthropic"
+    elif "gpt" in llm_model:
+        active_llm = "openai"
+    elif "gemini" in llm_model:
+        active_llm = "google"
+    elif "grok" in llm_model or "xai" in llm_model:
+        active_llm = "grok"
+    elif "mistral" in llm_model:
+        active_llm = "mistral"
+    else:
+        active_llm = None
+
+    # Identify active search provider
+    if s.brave_api_key:
+        active_search = "brave"
+    elif s.serp_api_key:
+        active_search = "serpapi"
+    elif s.searxng_url:
+        active_search = "searxng"
+    else:
+        active_search = "ddg"
+
     return {
         "needs_setup": not has_llm,
         "wizard_completed": wizard_completed,
+        "active_llm": active_llm,
+        "active_search": active_search,
         "configured": {
             "llm": has_llm,
             "search": bool(s.brave_api_key or s.serp_api_key or s.searxng_url),
