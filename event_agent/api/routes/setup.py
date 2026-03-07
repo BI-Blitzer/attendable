@@ -202,3 +202,44 @@ async def test_search_connection(payload: TestSearchPayload):
         return {"ok": True}
     except Exception as e:
         raise HTTPException(400, str(e))
+
+
+class ProcessInterestsPayload(BaseModel):
+    text: str
+
+
+@router.post("/process-interests")
+async def process_interests(payload: ProcessInterestsPayload):
+    import json
+    import re
+    import litellm  # noqa: PLC0415
+
+    s = get_settings()
+    model = s.llm_model or "claude-haiku-4-5-20251001"
+    kwargs: dict = {}
+    if s.llm_api_key:  kwargs["api_key"]  = s.llm_api_key
+    if s.llm_api_base: kwargs["api_base"] = s.llm_api_base
+
+    prompt = (
+        "You are a keyword extraction assistant. Given the user's interest statement, "
+        "extract the key topics and their closely related/synonymous terms as a flat list "
+        "of concise, lowercase search keyword strings. Include primary topics AND near-related terms. "
+        "Return ONLY a valid JSON array of strings. No markdown, no explanation.\n\n"
+        f"User interests: {payload.text!r}"
+    )
+    try:
+        resp = await litellm.acompletion(
+            model=model,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=400,
+            **kwargs,
+        )
+        content = (resp.choices[0].message.content or "").strip()
+        content = re.sub(r"^```[a-z]*\n?|\n?```$", "", content, flags=re.MULTILINE).strip()
+        tags = json.loads(content)
+        if not isinstance(tags, list):
+            raise ValueError("Expected JSON array")
+        tags = [str(t).lower().strip() for t in tags if str(t).strip()]
+        return {"tags": tags}
+    except Exception as e:
+        raise HTTPException(400, f"Failed to process interests: {e}")

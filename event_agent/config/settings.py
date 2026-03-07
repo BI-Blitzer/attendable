@@ -59,6 +59,8 @@ class Settings(BaseSettings):
         "investment conference",
     ]
     user_keywords: list[str] = []   # user-added custom geo search terms
+    user_interests_raw: str = ""            # free-form interest text entered by user
+    user_interest_tags: list[str] = []      # LLM-normalised keywords extracted from interests
 
     # Virtual/vendor-specific keywords — searched globally (no geo restriction).
     # Results are expected to be online events so the location filter is bypassed.

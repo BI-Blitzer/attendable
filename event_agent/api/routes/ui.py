@@ -594,6 +594,17 @@ _HTML = """<!DOCTYPE html>
     .sett-row { display:flex; align-items:center; gap:.5rem; margin-bottom:.5rem; flex-wrap:wrap; }
     .sett-row label { font-size:.82rem; color:#444; min-width:90px; }
     .sett-hint { font-size:.72rem; color:#aaa; margin-top:.15rem; margin-bottom:.5rem; }
+    /* ── Settings tabs ── */
+    .sett-tab-bar { display:flex; gap:0; border-bottom:1px solid #ececec; margin:-1.25rem -1.5rem 1.25rem; padding:0 .5rem; overflow-x:auto; flex-shrink:0; }
+    .sett-tab { padding:.6rem .75rem; border:none; background:none; cursor:pointer; font-size:.78rem; color:#666; font-family:inherit; border-bottom:2px solid transparent; white-space:nowrap; }
+    .sett-tab.active { color:#0071e3; border-bottom-color:#0071e3; font-weight:600; }
+    .sett-tab:hover:not(.active) { color:#333; background:#f5f5f7; }
+    .sett-tab-content { display:none; }
+    .sett-tab-content.active { display:block; }
+    /* ── Interest chips ── */
+    .interest-chip { display:inline-flex; align-items:center; gap:.3rem; background:#f0f4ff; color:#3730a3; padding:.2rem .6rem; border-radius:100px; font-size:.75rem; font-weight:500; }
+    .interest-chip button { background:none; border:none; padding:0; cursor:pointer; color:#818cf8; font-size:.9rem; line-height:1; }
+    .interest-chip button:hover { color:#4338ca; }
 
     /* ── iCal Modal ── */
     #icalModal {
@@ -2507,6 +2518,13 @@ _HTML = """<!DOCTYPE html>
   // ── Settings Panel ────────────────────────────────────────────────────────
   let _settingsCfg = {};
   let _settingsEnvVars = {};
+  let _settingsActiveTab = 'location';
+
+  function switchSettingsTab(id) {
+    _settingsActiveTab = id;
+    document.querySelectorAll('.sett-tab').forEach(el => el.classList.toggle('active', el.dataset.tab === id));
+    document.querySelectorAll('.sett-tab-content').forEach(el => el.classList.toggle('active', el.dataset.tab === id));
+  }
 
   function _renderSettingsBody(cfg) {
     const zip = cfg.center_zip || '';
@@ -2527,9 +2545,23 @@ _HTML = """<!DOCTYPE html>
     const clean  = cfg.cleanup_schedule_enabled !== false;
     const cDay   = cfg.cleanup_day_of_week ?? 6;
     const days   = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
-    return `
-      <div class="sett-section">
-        <div class="sett-section-title">Location</div>
+    const interestChips = (cfg.user_interest_tags || []).map(t =>
+      `<span class="interest-chip" data-tag="${_ea(t)}">${_ea(t)}<button onclick="removeInterestTag(this.parentElement.dataset.tag)" title="Remove">×</button></span>`
+    ).join('');
+    const t = _settingsActiveTab;
+    const tabs = [
+      {id:'location',  label:'📍 Location'},
+      {id:'sources',   label:'🔌 Sources'},
+      {id:'llm',       label:'🤖 LLM'},
+      {id:'search',    label:'🔍 Search'},
+      {id:'interests', label:'✨ Interests'},
+      {id:'schedule',  label:'⏰ Schedule'},
+    ];
+    const tabBar = `<div class="sett-tab-bar">${tabs.map(tab =>
+      `<button class="sett-tab ${tab.id===t?'active':''}" data-tab="${tab.id}" onclick="switchSettingsTab('${tab.id}')">${tab.label}</button>`
+    ).join('')}</div>`;
+    return tabBar + `
+      <div class="sett-tab-content ${t==='location'?'active':''}" data-tab="location">
         <div class="sett-row">
           <label for="settZip">ZIP Code</label>
           <input class="setup-input" id="settZip" type="text" maxlength="10" placeholder="e.g. 10001" value="${zip}" style="width:110px">
@@ -2546,22 +2578,32 @@ _HTML = """<!DOCTYPE html>
         </div>
         <p class="sett-hint">Lat/Lon overrides ZIP centroid for distance calculations. ZIP still used for scraper URLs.</p>
       </div>
-      <div class="sett-section">
-        <div class="sett-section-title">Sources</div>
+      <div class="sett-tab-content ${t==='sources'?'active':''}" data-tab="sources">
         ${sourcesHtml}
       </div>
-      <div class="sett-section">
-        <div class="sett-section-title">AI Provider</div>
+      <div class="sett-tab-content ${t==='llm'?'active':''}" data-tab="llm">
         <div class="provider-pills">${_pillsHtml(_LLM_PROVIDERS, activeLlm, 'selectLlmProviderSett')}</div>
         <div class="provider-detail" id="settLlmDetail">${_llmDetailHtml(activeLlm, cfg, 'sett')}</div>
       </div>
-      <div class="sett-section">
-        <div class="sett-section-title">Search Provider</div>
+      <div class="sett-tab-content ${t==='search'?'active':''}" data-tab="search">
         <div class="provider-pills">${_pillsHtml(_SEARCH_PROVIDERS, activeSearch, 'selectSearchProviderSett')}</div>
         <div class="provider-detail" id="settSearchDetail">${_searchDetailHtml(activeSearch, cfg, 'sett')}</div>
       </div>
-      <div class="sett-section">
-        <div class="sett-section-title">Schedule</div>
+      <div class="sett-tab-content ${t==='interests'?'active':''}" data-tab="interests">
+        <p class="sett-hint" style="margin-bottom:.75rem">Describe your interests in plain language. The AI will extract and normalise the key topics — these keywords refine which events surface on future pipeline runs.</p>
+        <textarea id="settInterestsRaw" rows="5"
+          placeholder="e.g. I care about AI agents, LLM infrastructure, startup culture, fintech regulation, and B2B SaaS product management..."
+          style="width:100%;resize:vertical;padding:.5rem .6rem;border:1px solid #ccc;border-radius:6px;font-size:.82rem;font-family:inherit;line-height:1.5">${_ea(cfg.user_interests_raw || '')}</textarea>
+        <div style="display:flex;align-items:center;gap:.75rem;margin-top:.5rem;flex-wrap:wrap">
+          <button class="setup-btn-next" type="button" onclick="processInterests()" style="padding:.35rem .85rem;font-size:.8rem">✨ Extract Keywords</button>
+          <span id="interestsProcessMsg" style="font-size:.78rem;color:#666"></span>
+        </div>
+        <div id="interestTagsWrap" style="margin-top:.75rem;display:flex;flex-wrap:wrap;gap:.4rem;min-height:1.5rem">
+          ${interestChips}
+        </div>
+        <p class="sett-hint" style="margin-top:.6rem">Click × to remove a keyword. Hit <strong>Save Settings</strong> to persist.</p>
+      </div>
+      <div class="sett-tab-content ${t==='schedule'?'active':''}" data-tab="schedule">
         <label style="display:flex;align-items:center;gap:.5rem;font-size:.82rem;margin-bottom:.5rem;flex-wrap:wrap">
           <input type="checkbox" id="settSchedEnabled" ${sched?'checked':''}>
           Auto-run daily at
@@ -2600,6 +2642,10 @@ _HTML = """<!DOCTYPE html>
     // Search config vars
     const searxUrl = val('settSearxUrl');
     if (searxUrl) cfg.searxng_url = searxUrl;
+    // Interests
+    const interestsEl = document.getElementById('settInterestsRaw');
+    if (interestsEl) cfg.user_interests_raw = interestsEl.value;
+    if (_settingsCfg.user_interest_tags !== undefined) cfg.user_interest_tags = _settingsCfg.user_interest_tags;
     // Schedule
     if (chk('settSchedEnabled') !== null) cfg.schedule_enabled = chk('settSchedEnabled');
     const sh = val('settSchedHour'); if (sh !== '') cfg.schedule_hour = parseInt(sh, 10);
@@ -2608,6 +2654,37 @@ _HTML = """<!DOCTYPE html>
     const cd = document.getElementById('settCleanDay');
     if (cd) cfg.cleanup_day_of_week = parseInt(cd.value, 10);
     return cfg;
+  }
+
+  async function processInterests() {
+    const text = (document.getElementById('settInterestsRaw')?.value || '').trim();
+    if (!text) return;
+    const msg = document.getElementById('interestsProcessMsg');
+    msg.textContent = '✨ Processing…'; msg.style.color = '#666';
+    try {
+      const res = await fetch('/setup/process-interests', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({text}),
+      });
+      if (!res.ok) throw new Error((await res.json()).detail || res.statusText);
+      const {tags} = await res.json();
+      _settingsCfg.user_interest_tags = tags;
+      document.getElementById('interestTagsWrap').innerHTML = tags.map(t =>
+        `<span class="interest-chip" data-tag="${_ea(t)}">${_ea(t)}<button onclick="removeInterestTag(this.parentElement.dataset.tag)" title="Remove">×</button></span>`
+      ).join('');
+      msg.textContent = `✓ ${tags.length} keywords extracted`; msg.style.color = '#16a34a';
+      setTimeout(() => { msg.textContent = ''; }, 3500);
+    } catch(err) {
+      msg.textContent = '✕ ' + err.message; msg.style.color = '#dc2626';
+    }
+  }
+
+  function removeInterestTag(name) {
+    if (!_settingsCfg.user_interest_tags) return;
+    _settingsCfg.user_interest_tags = _settingsCfg.user_interest_tags.filter(t => t !== name);
+    document.getElementById('interestTagsWrap').innerHTML = _settingsCfg.user_interest_tags.map(t =>
+      `<span class="interest-chip" data-tag="${_ea(t)}">${_ea(t)}<button onclick="removeInterestTag(this.parentElement.dataset.tag)" title="Remove">×</button></span>`
+    ).join('');
   }
 
   function _collectSettingsEnv() {

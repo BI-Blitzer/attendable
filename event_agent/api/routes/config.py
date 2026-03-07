@@ -16,7 +16,7 @@ _CONFIG_FILE = Path("config.json")
 _PATCHABLE = (
     "center_zip", "radius_miles", "center_lat", "center_lon",
     "enabled_sources", "search_keywords", "vendor_virtual_keywords",
-    "user_keywords",
+    "user_keywords", "user_interests_raw", "user_interest_tags",
     "llm_model", "llm_api_base",
     "schedule_enabled", "schedule_hour", "schedule_minute",
     "cleanup_schedule_enabled", "cleanup_day_of_week",
@@ -51,6 +51,8 @@ def _merged() -> dict:
         "search_keywords":         o.get("search_keywords",         s.search_keywords),
         "vendor_virtual_keywords": o.get("vendor_virtual_keywords", s.vendor_virtual_keywords),
         "user_keywords":           o.get("user_keywords",           s.user_keywords),
+        "user_interests_raw":      o.get("user_interests_raw",      s.user_interests_raw),
+        "user_interest_tags":      o.get("user_interest_tags",      s.user_interest_tags),
         "llm_model":               o.get("llm_model",               s.llm_model),
         "llm_api_base":            o.get("llm_api_base",            s.llm_api_base),
         "schedule_enabled":          o.get("schedule_enabled",          s.schedule_enabled),
@@ -98,6 +100,8 @@ class ConfigOut(BaseModel):
     search_keywords: list[str]
     vendor_virtual_keywords: list[str]
     user_keywords: list[str]
+    user_interests_raw: str = ""
+    user_interest_tags: list[str] = []
     llm_model: str
     llm_api_base: str
     schedule_enabled: bool
@@ -122,6 +126,8 @@ class ConfigPatch(BaseModel):
     search_keywords: list[str] | None = None
     vendor_virtual_keywords: list[str] | None = None
     user_keywords: list[str] | None = None
+    user_interests_raw: str | None = None
+    user_interest_tags: list[str] | None = None
     llm_model: str | None = None
     llm_api_base: str | None = None
     schedule_enabled: bool | None = None
