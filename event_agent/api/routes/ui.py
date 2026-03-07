@@ -889,7 +889,7 @@ _HTML = """<!DOCTYPE html>
     const wrap = document.getElementById('activeTagWrap');
     if (!activeTags.size) { wrap.innerHTML = ''; return; }
     wrap.innerHTML = [...activeTags].map(t =>
-      `<div class="active-tag-chip">${_ea(t)}<button onclick="removeActiveTag(${JSON.stringify(t)})" title="Remove">×</button></div>`
+      `<div class="active-tag-chip" data-tag="${_ea(t)}">${_ea(t)}<button onclick="removeActiveTag(this.parentElement.dataset.tag)" title="Remove">×</button></div>`
     ).join('');
     document.getElementById('tagsPopoutBtn').classList.add('has-active');
   }
@@ -1374,6 +1374,14 @@ _HTML = """<!DOCTYPE html>
   let _elapsedTimer = null;
   let _runStart     = null;
   let _currentStep  = '';
+  let _setupReady   = false;  // set to true once LLM is configured
+
+  function _applySetupGate(status) {
+    _setupReady = !status.needs_setup;
+    const btn = document.getElementById('btnRun');
+    btn.disabled = !_setupReady;
+    btn.title = _setupReady ? '' : 'Configure an LLM provider first — open ⚙ Settings';
+  }
 
   function setRunStatus(cls, text) {
     const el = document.getElementById('runStatus');
@@ -1382,6 +1390,7 @@ _HTML = """<!DOCTYPE html>
   }
 
   async function triggerRun() {
+    if (!_setupReady) { showSettings(); return; }
     const btn = document.getElementById('btnRun');
     btn.disabled = true;
     _runStart = Date.now();
@@ -1487,10 +1496,17 @@ _HTML = """<!DOCTYPE html>
   async function loadThisWeek() {
     const now = new Date();
     const end = new Date(now.getTime() + 7 * 864e5);
+    const f = getFilters();
     const p = new URLSearchParams({
       from_date: now.toISOString(), to_date: end.toISOString(),
-      limit: 40, page: 1, hide_noted: 'true',
+      limit: 40, page: 1,
     });
+    if (f.search)    p.set('q', f.search);
+    if (f.source)    p.set('source', f.source);
+    if (f.eventType) p.set('event_type', f.eventType);
+    if (f.dist)      p.set('max_distance_miles', f.dist);
+    if (f.free)      p.set('free_only', 'true');
+    if (!f.hideNoted) p.set('hide_noted', 'false');
     activeTags.forEach(t => p.append('tag', t));
     try {
       const res = await fetch('/events?' + p);
@@ -2301,6 +2317,7 @@ _HTML = """<!DOCTYPE html>
     }
 
     closeSetupWizard();
+    fetch('/setup/status').then(r => r.json()).then(_applySetupGate).catch(() => {});
     loadNextRun();
     loadStats();
     if (triggerRun_) triggerRun();
@@ -2655,6 +2672,7 @@ _HTML = """<!DOCTYPE html>
         await fetch('/setup/', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({env_vars:envVars, config_vars:{}})});
       msg.textContent = '✓ Saved'; msg.style.color = '#16a34a';
       setTimeout(() => { msg.textContent = ''; }, 2500);
+      fetch('/setup/status').then(r => r.json()).then(_applySetupGate).catch(() => {});
       loadNextRun(); loadStats();
     } catch(err) {
       msg.textContent = '✕ ' + err.message; msg.style.color = '#dc2626';
@@ -2668,6 +2686,7 @@ _HTML = """<!DOCTYPE html>
     for (let attempt = 0; attempt < 5; attempt++) {
       try {
         const status = await fetch('/setup/status').then(r => r.json());
+        _applySetupGate(status);
         if (!status.wizard_completed) showBanner();
         break;
       } catch (_) {
