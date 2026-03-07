@@ -908,6 +908,7 @@ _HTML = """<!DOCTYPE html>
     page = 1; load();
   }
   function filterByTag(name, ev) {
+    if (ev) ev.stopPropagation();
     const tagList = _allTags.map(t => t.name);
     const idx = tagList.indexOf(name);
     if (ev && (ev.ctrlKey || ev.metaKey)) {
