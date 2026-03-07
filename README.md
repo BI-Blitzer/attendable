@@ -10,9 +10,11 @@ AI-powered tech & business intelligence event discovery. Scrapes Eventbrite, Mee
 - **LLM classification** — filters and tags events by industry/technology topic
 - **Distance filtering** — keeps events within your configured radius
 - **Browser UI** — list view, calendar view, "This Week" urgency strip, interest tracking (flag / attend / dismiss)
-- **Tags popout** — filter by tag with live counts; add custom geo search terms directly from the UI
+- **Tags popout** — filter by tag with live counts; Ctrl/⌘+click to multi-select, Shift+click for range selection; active tags shown as dismissible chips in the filter bar; add custom geo search terms directly from the UI
 - **iCal export** — download `.ics` for Google Calendar / Apple Calendar; modal lets you filter by All / Flagged / Attending
-- **Settings panel** — gear icon opens a full settings form; "Run Setup Wizard" button inside for step-by-step re-configuration
+- **Settings panel** — gear icon opens a tabbed settings panel (Location, Sources, LLM, Search, Interests, Schedule); "Run Setup Wizard" button inside for step-by-step re-configuration
+- **User Interests** — free-form text in the Interests settings tab; LLM extracts and normalises keyword chips that refine future pipeline searches
+- **Run gate** — the Run Pipeline button is disabled until at least one LLM provider is configured; clicking it opens Settings instead
 - **First-run banner** — welcome banner on first load links to the setup wizard; dismissible once configured
 - **Scheduled runs** — daily pipeline + weekly cleanup via APScheduler; configurable from Settings
 - **SQLite by default** — no database server required; PostgreSQL supported for production
@@ -121,6 +123,7 @@ Two keyword lists control what gets searched:
 | `search_keywords` | Geo-targeted (appends ZIP to query). For local physical/hybrid events. |
 | `user_keywords` | Additional geo-targeted terms added by the user via the Tags popout. |
 | `vendor_virtual_keywords` | Searched globally (no ZIP). For vendor webinars and online events. |
+| `user_interest_tags` | LLM-normalised keywords extracted from the Interests tab; merged into pipeline search terms. |
 
 Custom terms can be added without restarting — type into the **🏷 Tags** popout and click **+**. They appear in the "No events yet" section until the next pipeline run discovers matching events.
 
@@ -194,6 +197,7 @@ main.py         # CLI entry point (Click)
 | `POST` | `/setup/` | Save wizard env vars + config vars |
 | `POST` | `/setup/test-llm` | Test LLM API key connectivity |
 | `POST` | `/setup/test-search` | Test search provider connectivity |
+| `POST` | `/setup/process-interests` | Extract normalised keyword tags from free-form interest text |
 | `POST` | `/backup` | Download backup ZIP |
 | `POST` | `/backup/restore` | Restore from backup ZIP |
 
