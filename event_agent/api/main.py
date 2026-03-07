@@ -51,7 +51,7 @@ def create_app() -> FastAPI:
     application = FastAPI(
         title="Attendable",
         description="AI Powered Event Discovery",
-        version="0.25.0a1",
+        version="0.5.0a1",
         lifespan=lifespan,
     )
     application.include_router(ui_router.router)

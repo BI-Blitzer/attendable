@@ -22,6 +22,19 @@ AI-powered tech & business intelligence event discovery. Scrapes Eventbrite, Mee
 
 ---
 
+## What to expect after your first run
+
+1. Click **▶ Run Pipeline** — per-scraper progress shows in the header (2–5 min total)
+2. Event cards appear sorted by date; physical events show distance from your ZIP
+3. The **This Week** strip shows urgency-coded cards for the next 7 days
+4. Flag events: 🚩 **Interested** / ☑ **Attending** / 👁 **Dismiss** (dismissed events are hidden by default)
+5. Export flagged/attending events to Google Calendar / Apple Calendar with **📅 .ics**
+
+> **First run shows 0 events?** Web search discovers event pages on the first pass and scrapes
+> them on the next. Run the pipeline a second time or widen your search radius.
+
+---
+
 ## Quickstart — Pinokio (one-click)
 
 1. Open [Pinokio](https://pinokio.computer) and click **Discover**
@@ -174,6 +187,44 @@ scripts/        # One-off utilities (PG→SQLite export)
 tests/          # pytest suite
 main.py         # CLI entry point (Click)
 ```
+
+---
+
+## Troubleshooting
+
+| Symptom | Fix |
+|---------|-----|
+| 0 events after first run | Run the pipeline again; web search discovers links on pass 1, scrapes on pass 2 |
+| LLM test connection fails | Verify API key and account credits; check the provider's status page |
+| Playwright / Chromium errors | Run `uv run playwright install chromium` in the project folder |
+| Pipeline stuck on "Running…" | Refresh — the run continues in the background (up to 10 min); check the terminal for errors |
+| Meetup returns no results | Meetup scraper uses Playwright; ensure Chromium is installed and accessible |
+| `config.json` errors on start | Delete `config.json` and restart — settings will reset to defaults |
+
+---
+
+## FAQ
+
+**Is my data private?**
+Yes. All scraped events are stored in a local SQLite database (`event_agent.db`). Nothing is
+sent externally except: (a) search queries to your configured search provider and (b) event
+text to your LLM for classification.
+
+**How much does it cost per run?**
+A typical run classifies 50–200 events. With Claude Haiku or GPT-4o-mini that's roughly
+$0.01–$0.05 per pipeline run. DuckDuckGo search is always free. Fully local operation
+(LM Studio + SearXNG) has zero API cost.
+
+**Can I run this offline?**
+Partially. With LM Studio + SearXNG, the LLM and search are local. Scrapers still need
+internet access to reach Eventbrite, Meetup, and Luma.
+
+**How do I update?**
+In Pinokio, click **Update**. Your `.env` and `config.json` are preserved automatically.
+
+**How do I back up my events?**
+Open Settings (⚙) → **Schedule** tab → **Backup** button → downloads a ZIP of your database
+and config.
 
 ---
 
